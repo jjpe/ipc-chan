@@ -9,8 +9,8 @@ use std::path::Path;
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[derive(Deserialize, Serialize)]
 pub struct Config {
-    pub(crate) host: String,
-    pub(crate) port: usize,
+    pub host: String,
+    pub port: usize,
 }
 
 impl Default for Config {
