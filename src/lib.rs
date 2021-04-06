@@ -162,7 +162,7 @@ mod tests {
 
     #[test]
     fn read_config_file() -> Result<()> {
-        let ctx = Ctx::new("ipc-channel.toml")?;
+        let ctx = Ctx::new("ipc-chan.toml")?;
         let cfg = Config::default();
         assert_eq!(ctx.cfg.host, cfg.host);
         assert_eq!(ctx.cfg.port, cfg.port);
