@@ -75,6 +75,9 @@ impl Sink {
         imp::send(&mut self.socket, ACK)?;
         Ok(msg)
     }
+
+    #[inline(always)]
+    pub fn config(&self) -> &Config { &self.cfg }
 }
 
 
