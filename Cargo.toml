@@ -1,6 +1,6 @@
 [package]
-name = "ipc-channel"
 version = "0.2.0"
+name = "ipc-chan"
 authors = ["Joey Ezechiels <joey.ezechiels@gmail.com>"]
 edition = "2018"
 description = "An IPC-capable channel with an API akin to `std::sync::mpsc::channel`."
