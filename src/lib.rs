@@ -12,6 +12,15 @@ use serde::{Deserialize, Serialize};
 /// It's a little passive-aggressive, but it'll work.
 const ACK: &str = "K";
 
+/// A convenience macro to "print" formatted text to a `Source`.
+#[macro_export]
+macro_rules! send_str {
+    ($source:expr, $fmt:expr $(, $arg:expr)*) => {{
+        let source: &mut $crate::Source = &mut $source;
+        source.send(&format!($fmt $(, $arg)*))
+    }};
+}
+
 
 pub struct Source {
     #[allow(unused)]
@@ -157,6 +166,30 @@ mod tests {
         });
         source0.send("Hello World! 0")?;
         source1.send("Hello World! 1")?;
+        source0.send(&Foo("Hello World! 2".to_string(), 42))?;
+        thread_guard.join().unwrap();
+        Ok(())
+    }
+
+    #[test]
+    fn send_str_macro() -> Result<()> {
+        let cfg = Config {
+            host: "127.0.0.1".to_string(),
+            port: 11003, // test-specific port
+        };
+        let mut source0 = Source::from_config(cfg.clone())?;
+        let mut source1 = Source::from_config(cfg.clone())?;
+        let mut    sink =   Sink::from_config(cfg.clone())?;
+        let thread_guard = std::thread::spawn(move || {
+            let msg0: String = sink.recv().expect("Sink failed to receive msg0");
+            assert_eq!(msg0, "Hello World! 0");
+            let msg1: String = sink.recv().expect("Sink failed to receive msg1");
+            assert_eq!(msg1, "Hello World! 1");
+            let msg2: Foo = sink.recv().expect("Sink failed to receive msg2");
+            assert_eq!(msg2, Foo("Hello World! 2".to_string(), 42));
+        });
+        send_str!(source0, "Hello World! {}", 0)?;
+        send_str!(source1, "Hello World! {}", 1)?;
         source0.send(&Foo("Hello World! 2".to_string(), 42))?;
         thread_guard.join().unwrap();
         Ok(())
