@@ -1,0 +1,4 @@
+# This file configures the ZeroMQ sockets used in the `ipc-channel` crate.
+
+host = "127.0.0.1"
+port = 10001
