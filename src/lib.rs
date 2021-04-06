@@ -35,6 +35,8 @@ impl Ctx {
         Ok((source, sink))
     }
 
+    /// Get an additional source.
+    /// This can be used to send msgs to the sink of `self`.
     pub fn source(&self) -> Result<Source> {
         let source = Source(self.ctx.socket(zmq::REQ)?);
         source.0.connect(&format!("tcp://{}:{}", self.cfg.host, self.cfg.port))?;
