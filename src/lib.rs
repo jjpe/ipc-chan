@@ -9,75 +9,70 @@ use std::path::Path;
 use serde::{Deserialize, Serialize};
 
 
-pub struct Ctx {
-    ctx: zmq::Context,
-    cfg: Config,
-}
-
-impl Ctx {
-    pub fn new<P: AsRef<Path>>(toml_path: P) -> Result<Self> {
-        Ok(Self {
-            ctx: zmq::Context::new(),
-            cfg: Config::parse_toml(toml_path)?,
-        })
-    }
-
-    pub fn with_config(config: Config) -> Self {
-        Self {
-            ctx: zmq::Context::new(),
-            cfg: config,
-        }
-    }
-
-    pub fn channel(&self) -> Result<(Source, Sink)> {
-        let   sink =   self.sink()?; // NOTE: first initialize the sink ...
-        let source = self.source()?; // NOTE: ... and only then the source
-        Ok((source, sink))
-    }
-
-    /// Get an additional source.
-    /// This can be used to send msgs to the sink of `self`.
-    pub fn source(&self) -> Result<Source> {
-        let source = Source(self.ctx.socket(zmq::REQ)?);
-        source.0.connect(&format!("tcp://{}:{}", self.cfg.host, self.cfg.port))?;
-        Ok(source)
-    }
-
-    fn sink(&self) -> Result<Sink> {
-        let sink = Sink(self.ctx.socket(zmq::REP)?);
-        sink.0.bind(&format!("tcp://*:{}", self.cfg.port))?;
-        Ok(sink)
-    }
-}
-
-
 /// It's a little passive-aggressive, but it'll work.
 const ACK: &str = "K";
 
 
-pub struct Source(zmq::Socket);
+pub struct Source {
+    #[allow(unused)]
+    ctx: zmq::Context,
+    socket: zmq::Socket,
+    #[allow(unused)]
+    cfg: Config,
+}
 
 impl Source {
+    pub fn from_toml<P: AsRef<Path>>(toml_path: P) -> Result<Self> {
+        let cfg = Config::parse_toml(toml_path)?;
+        Self::from_config(cfg)
+    }
+
+    pub fn from_config(cfg: Config) -> Result<Self> {
+        let ctx = zmq::Context::new();
+        let socket = ctx.socket(zmq::REQ)?;
+        socket.connect(&format!("tcp://{}:{}", cfg.host, cfg.port))?;
+        Ok(Self { ctx, socket, cfg })
+    }
+
     /// Send a value of type `V`.
     /// Return `Ok(())` if the value was sent successfully;
     /// Otherwise return an error.
     pub fn send<V>(&mut self, value: &V) -> Result<()>
     where V: ?Sized + Serialize {
-        imp::send(&mut self.0, value)?;
-        let reply: String = imp::recv(&mut self.0)?;
+        imp::send(&mut self.socket, value)?;
+        let reply: String = imp::recv(&mut self.socket)?;
         debug_assert_eq!(reply, ACK);
         Ok(())
     }
 }
 
 
-pub struct Sink(zmq::Socket);
+pub struct Sink {
+    #[allow(unused)]
+    ctx: zmq::Context,
+    socket: zmq::Socket,
+    #[allow(unused)]
+    cfg: Config,
+}
 
 impl Sink {
+    pub fn from_toml<P: AsRef<Path>>(toml_path: P) -> Result<Self> {
+        let cfg = Config::parse_toml(toml_path)?;
+        Self::from_config(cfg)
+    }
+
+    pub fn from_config(cfg: Config) -> Result<Self> {
+        let ctx = zmq::Context::new();
+        let socket = ctx.socket(zmq::REP)?;
+        socket.bind(&format!("tcp://*:{}", cfg.port))?;
+        Ok(Self { ctx, socket, cfg })
+    }
+
+
     pub fn recv<V>(&mut self) -> Result<V>
     where V: for<'de> Deserialize<'de> {
-        let msg: V = imp::recv(&mut self.0)?;
-        imp::send(&mut self.0, ACK)?;
+        let msg: V = imp::recv(&mut self.socket)?;
+        imp::send(&mut self.socket, ACK)?;
         Ok(msg)
     }
 }
@@ -119,11 +114,12 @@ mod tests {
 
     #[test]
     fn send_and_receive_msg() -> Result<()> {
-        let ctx = Ctx::with_config(Config {
+        let cfg = Config {
             host: "127.0.0.1".to_string(),
             port: 11001, // test-specific port
-        });
-        let (mut source, mut sink): (Source, Sink) = ctx.channel()?;
+        };
+        let mut source = Source::from_config(cfg.clone())?;
+        let mut   sink =   Sink::from_config(cfg.clone())?;
         let thread_guard = std::thread::spawn(move || {
             let msg0: String = sink.recv().expect("Sink failed to receive MSG0");
             assert_eq!(msg0, "Hello World! 0");
@@ -141,12 +137,13 @@ mod tests {
 
     #[test]
     fn multiple_senders() -> Result<()> {
-        let ctx = Ctx::with_config(Config {
+        let cfg = Config {
             host: "127.0.0.1".to_string(),
             port: 11002, // test-specific port
-        });
-        let (mut source0, mut sink): (Source, Sink) = ctx.channel()?;
-        let mut source1 = ctx.source()?;
+        };
+        let mut source0 = Source::from_config(cfg.clone())?;
+        let mut source1 = Source::from_config(cfg.clone())?;
+        let mut    sink =   Sink::from_config(cfg.clone())?;
         let thread_guard = std::thread::spawn(move || {
             let msg0: String = sink.recv().expect("Sink failed to receive MSG0");
             assert_eq!(msg0, "Hello World! 0");
@@ -164,10 +161,10 @@ mod tests {
 
     #[test]
     fn read_config_file() -> Result<()> {
-        let ctx = Ctx::new("ipc-chan.toml")?;
-        let cfg = Config::default();
-        assert_eq!(ctx.cfg.host, cfg.host);
-        assert_eq!(ctx.cfg.port, cfg.port);
+        let cfg = Config::parse_toml("ipc-chan.toml")?;
+        let default_cfg = Config::default();
+        assert_eq!(cfg.host, default_cfg.host);
+        assert_eq!(cfg.port, default_cfg.port);
         Ok(())
     }
 
