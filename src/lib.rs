@@ -14,7 +14,7 @@ const ACK: &str = "K";
 
 /// A convenience macro to "print" formatted text to a `Source`.
 #[macro_export]
-macro_rules! send_str {
+macro_rules! sendstr {
     ($source:expr, $fmt:expr $(, $arg:expr)*) => {{
         let source: &mut $crate::Source = &mut $source;
         source.send(&format!($fmt $(, $arg)*))
