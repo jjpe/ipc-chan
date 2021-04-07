@@ -191,8 +191,8 @@ mod tests {
             let msg2: Foo = sink.recv().expect("Sink failed to receive msg2");
             assert_eq!(msg2, Foo("Hello World! 2".to_string(), 42));
         });
-        send_str!(source0, "Hello World! {}", 0)?;
-        send_str!(source1, "Hello World! {}", 1)?;
+        sendstr!(source0, "Hello World! {}", 0)?;
+        sendstr!(source1, "Hello World! {}", 1)?;
         source0.send(&Foo("Hello World! 2".to_string(), 42))?;
         thread_guard.join().unwrap();
         Ok(())
