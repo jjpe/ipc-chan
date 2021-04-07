@@ -53,6 +53,9 @@ impl Source {
         debug_assert_eq!(reply, ACK);
         Ok(())
     }
+
+    #[inline(always)]
+    pub fn config(&self) -> &Config { &self.cfg }
 }
 
 
